@@ -16,6 +16,8 @@ namespace SeatingChart
 
             var runner = new Runner(cfg, 20);
 
+            runner.RunGeneration();
+
             var textWriter = new StreamWriter(args[1]);
             var writer = new JsonTextWriter(textWriter);
             writer.Formatting = Formatting.Indented;

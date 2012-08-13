@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace SeatingChart.Model
 {
@@ -15,6 +17,11 @@ namespace SeatingChart.Model
             {
                 Tables.Add(new Table(peoplePerTable));
             }
+        }
+
+        public bool HasPerson(Person randomPerson)
+        {
+            return Tables.Any(table => table.People.Contains(randomPerson));
         }
     }
 }
