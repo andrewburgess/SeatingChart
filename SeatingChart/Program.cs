@@ -14,6 +14,8 @@ namespace SeatingChart
             var reader = new JsonTextReader(textReader);
             var cfg = jsSerializer.Deserialize<Configuration>(reader);
 
+            var runner = new Runner(cfg, 20);
+
             Console.ReadLine();
         }
     }
