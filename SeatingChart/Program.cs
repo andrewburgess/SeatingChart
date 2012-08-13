@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 using SeatingChart.Model;
 
@@ -7,9 +9,40 @@ namespace SeatingChart
 {
     class Program
     {
+        private static Dictionary<string, CommandRunner> Commands { get; set; }
+
         static void Main(string[] args)
         {
-            var jsSerializer = new JsonSerializer();
+            Console.WriteLine("".PadRight(79, '-'));
+            Console.WriteLine("Andrew's Wedding Seat Planner");
+            Console.WriteLine("By Andrew Burgess <andrew@deceptacle.com>");
+            Console.WriteLine();
+            Console.WriteLine("Version 1.0.0");
+            Console.WriteLine("".PadRight(79, '-'));
+            Console.WriteLine();
+            Console.WriteLine();
+
+            Commands = SetupCommands();
+
+            var input = "";
+
+            while (input.ToLower() != "exit" && input.ToLower() != "quit")
+            {
+                Console.Write("Enter Command (type help for list): ");
+                input = Console.ReadLine();
+
+                var tokens = input.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
+
+                if (Commands.ContainsKey(tokens[0].ToLower()) == false)
+                {
+                    Console.WriteLine("Command was invalid.\n");
+                    continue;
+                }
+
+                Commands[tokens[0].ToLower()].Command.DynamicInvoke(tokens.Skip(1).ToArray());
+            }
+
+            /*var jsSerializer = new JsonSerializer();
             var textReader = new StreamReader(args[0]);
             var reader = new JsonTextReader(textReader);
             var cfg = jsSerializer.Deserialize<Configuration>(reader);
@@ -24,7 +57,64 @@ namespace SeatingChart
             writer.Indentation = 4;
             jsSerializer.Serialize(writer, runner.Population);
 
-            Console.ReadLine();
+            Console.ReadLine();*/
+        }
+
+        private static Dictionary<string, CommandRunner> SetupCommands()
+        {
+            return new Dictionary<string, CommandRunner>
+                       {
+                           {
+                               "help", new CommandRunner
+                                           {
+                                               Help = "help : Prints out all of the available commands for the system",
+                                               Command = new Action(DisplayHelp)
+                                           }
+                           },
+                           {
+                               "parse-names", new CommandRunner
+                                                  {
+                                                      Help = "parse-names {input} {output} : Converts the list of names to a basic input.json file to be edited later",
+                                                      Command = new Action<string, string>(ParseNames)
+                                                  }
+                           }
+                       };
+        }
+
+        private static void ParseNames(string input, string output)
+        {
+            var stringReader = new StreamReader(input);
+            var data = stringReader.ReadToEnd();
+            stringReader.Close();
+            var lines = data.Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
+
+            var cfg = new Configuration();
+            foreach (var line in lines)
+            {
+                cfg.People.Add(new Person
+                                   {
+                                       Name = line
+                                   });
+            }
+
+            var serializer = new JsonSerializer();
+            var textWriter = new StreamWriter(output);
+            var writer = new JsonTextWriter(textWriter) {Formatting = Formatting.Indented, Indentation = 4};
+            serializer.Serialize(writer, cfg);
+            textWriter.Flush();
+            textWriter.Close();
+
+            Console.WriteLine("Wrote out " + lines.Count() + " guests");
+            Console.WriteLine();
+        }
+
+        private static void DisplayHelp()
+        {
+            foreach (var cmd in Commands)
+            {
+                Console.WriteLine(cmd.Value.Help);
+            }
+            Console.WriteLine();
         }
     }
 }
