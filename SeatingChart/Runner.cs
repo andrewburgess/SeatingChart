@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using SeatingChart.Model;
@@ -155,14 +156,34 @@ namespace SeatingChart
             foreach (var table in arrangement.Tables)
             {
                 var currentTable = table;
-                var tableScore = (from firstPerson in currentTable.People
-                                  where firstPerson != null
-                                  from secondPerson in currentTable.People
-                                  where secondPerson != null
-                                  where firstPerson != secondPerson
-                                  let r = secondPerson
-                                  where firstPerson.Relationships.Count(x => x.Other == r.Name) > 0
-                                  select firstPerson.Relationships.First(x => x.Other == r.Name).Score).Sum();
+                var relationshipsAccountedFor = new List<Relationship>();
+
+                var tableScore = 0;
+
+                var combinations = Enumerable.Range(2, 1)
+                    .Aggregate(
+                        Enumerable.Empty<IEnumerable<Person>>(),
+                        (acc, i) =>
+                        acc.Concat(Enumerable.Repeat(currentTable.People, i).Combinations()));
+
+                foreach (var combo in combinations)
+                {
+                    var leftPerson = combo.FirstOrDefault();
+                    var rightPerson = combo.Skip(1).FirstOrDefault();
+                    if (leftPerson == null || rightPerson == null) continue;
+
+                    var relationship = Configuration.Relationships.Where(
+                        x => ((x.Left == leftPerson.Name) || (x.Right == leftPerson.Name)) &&
+                             ((x.Left == rightPerson.Name) || (x.Right == rightPerson.Name))).FirstOrDefault();
+
+                    if (relationship != null)
+                    {
+                        tableScore += relationship.Score;
+                        relationshipsAccountedFor.Add(relationship);
+                    }
+
+                }
+
                 table.Score = tableScore;
                 score += tableScore;
             }

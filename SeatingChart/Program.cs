@@ -10,6 +10,7 @@ namespace SeatingChart
     class Program
     {
         private static Dictionary<string, CommandRunner> Commands { get; set; }
+        private static Runner Runner { get; set; }
 
         static void Main(string[] args)
         {
@@ -42,12 +43,7 @@ namespace SeatingChart
                 Commands[tokens[0].ToLower()].Command.DynamicInvoke(tokens.Skip(1).ToArray());
             }
 
-            /*var jsSerializer = new JsonSerializer();
-            var textReader = new StreamReader(args[0]);
-            var reader = new JsonTextReader(textReader);
-            var cfg = jsSerializer.Deserialize<Configuration>(reader);
-
-            var runner = new Runner(cfg, 20);
+            /*
 
             runner.RunGeneration();
 
@@ -70,15 +66,44 @@ namespace SeatingChart
                                                Help = "help : Prints out all of the available commands for the system",
                                                Command = new Action(DisplayHelp)
                                            }
-                           },
+                               },
                            {
                                "parse-names", new CommandRunner
                                                   {
-                                                      Help = "parse-names {input} {output} : Converts the list of names to a basic input.json file to be edited later",
+                                                      Help =
+                                                          "parse-names {input} {output} : Converts the list of names to a basic input.json file to be edited later",
                                                       Command = new Action<string, string>(ParseNames)
                                                   }
-                           }
+                               },
+                           {
+                               "initialize", new CommandRunner
+                                                 {
+                                                     Help =
+                                                         "initialize {input-file} {population-size} : Initializes the population with the specified file",
+                                                     Command = new Action<string, string>(InitializePopulation)
+                                                 }
+                               },
+                           {
+                               "parse-relations", new CommandRunner
+                                                      {
+                                                          Help =
+                                                              "parse-relations {input} {output} : Converts relations to basic json files",
+                                                          Command = new Action<string, string>(ParseRelations)
+                                                      }
+                               }
                        };
+        }
+
+        private static void InitializePopulation(string inputFile, string populationSize)
+        {
+            var jsSerializer = new JsonSerializer();
+            var textReader = new StreamReader(inputFile);
+            var reader = new JsonTextReader(textReader);
+            var cfg = jsSerializer.Deserialize<Configuration>(reader);
+            textReader.Close();
+            reader.Close();
+
+            Runner = new Runner(cfg, int.Parse(populationSize));
         }
 
         private static void ParseNames(string input, string output)
@@ -91,6 +116,10 @@ namespace SeatingChart
             var cfg = new Configuration();
             foreach (var line in lines)
             {
+                var currentLine = line;
+                if (cfg.People.Count(x => x.Name == currentLine) > 0)
+                    throw new ApplicationException("Name duplication: " + line);
+
                 cfg.People.Add(new Person
                                    {
                                        Name = line
@@ -105,6 +134,50 @@ namespace SeatingChart
             textWriter.Close();
 
             Console.WriteLine("Wrote out " + lines.Count() + " guests");
+            Console.WriteLine();
+        }
+
+        private static void ParseRelations(string input, string output)
+        {
+            var serializer = new JsonSerializer();
+            var textReader = new StreamReader(output);
+            var reader = new JsonTextReader(textReader);
+            var cfg = serializer.Deserialize<Configuration>(reader);
+            textReader.Close();
+            reader.Close();
+
+            var stringReader = new StreamReader(input);
+            var data = stringReader.ReadToEnd();
+            stringReader.Close();
+            var lines = data.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+         
+            foreach (var line in lines)
+            {
+                var currentLine = line;
+                var left = currentLine.Split(new[] {" + "}, StringSplitOptions.RemoveEmptyEntries)[0];
+                var right = currentLine.Split(new[] { " + " }, StringSplitOptions.RemoveEmptyEntries)[1];
+
+                if (cfg.People.Count(x => x.Name == left) == 0)
+                    throw new ApplicationException("Name not found: " + left);
+                if (cfg.People.Count(x => x.Name == right) == 0)
+                    throw new ApplicationException("Name not found: " + right);
+
+                cfg.Relationships.Add(new Relationship()
+                {
+                    Left = left,
+                    Right = right,
+                    Score = 100
+                });
+            }
+
+            
+            var textWriter = new StreamWriter(output);
+            var writer = new JsonTextWriter(textWriter) { Formatting = Formatting.Indented, Indentation = 4 };
+            serializer.Serialize(writer, cfg);
+            textWriter.Flush();
+            textWriter.Close();
+
+            Console.WriteLine("Wrote out " + lines.Count() + " relationships");
             Console.WriteLine();
         }
 

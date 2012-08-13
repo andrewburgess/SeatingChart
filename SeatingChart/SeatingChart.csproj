@@ -52,6 +52,7 @@
     <Compile Include="Model\Arrangement.cs" />
     <Compile Include="Model\Configuration.cs" />
     <Compile Include="Model\Person.cs" />
+    <Compile Include="Model\Politics.cs" />
     <Compile Include="Model\Relationship.cs" />
     <Compile Include="Model\Table.cs" />
     <Compile Include="Program.cs" />
