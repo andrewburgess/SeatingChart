@@ -182,6 +182,11 @@ namespace SeatingChart
                         relationshipsAccountedFor.Add(relationship);
                     }
 
+                    //Calculate age differences
+                    tableScore += (int)Math.Pow(leftPerson.Age - rightPerson.Age, 2);
+
+                    //Calculate political differences
+                    tableScore += CalculatePolitics(leftPerson.Politics, rightPerson.Politics);
                 }
 
                 table.Score = tableScore;
@@ -189,6 +194,11 @@ namespace SeatingChart
             }
 
             arrangement.Score = score;
+        }
+
+        private static int CalculatePolitics(Politics leftPolitics, Politics rightPolitics)
+        {
+            return leftPolitics.Left + rightPolitics.Left + leftPolitics.Right + rightPolitics.Right;
         }
     }
 }
