@@ -19,5 +19,10 @@ namespace SeatingChart.Model
         {
             return Name.CompareTo(obj.Name);
         }
+
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 }

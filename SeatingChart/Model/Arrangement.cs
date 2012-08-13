@@ -23,5 +23,10 @@ namespace SeatingChart.Model
         {
             return Tables.Any(table => table.People.Contains(randomPerson));
         }
+
+        public override string ToString()
+        {
+            return "Arrangment Score: " + Score;
+        }
     }
 }
