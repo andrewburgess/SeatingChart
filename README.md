@@ -3,9 +3,10 @@ Seating Chart Genetic Algorithm
 
 This started off as a genetic algorithm, but took a bit of a turn because now
 it focuses more on getting a good result instead of relying on random chance.
+I guess now you could consider it more like selective breeding
 
-It means that the process takes longer to run, but you get ideal results in
-fewer generations
+It means that each generation takes longer to run, but you get ideal results in
+fewer iterations. Typical use cases saw ideal results in around 5 or so.
 
 How To Use
 ==========
@@ -16,11 +17,15 @@ There are a few commands to use
 
 <pre>
  help                               : Outputs the commands and some help text
- initialize {input} {population}    : Reads the input configuration file and creates a base population of the specified size
- parse-names {input} {output}       : Takes a list of names and converts them into the appropriate format for the configuration file
- parse-relations {input} {output}   : Takes a list of relations, defined as <left-person> + <right-person> and will assign a score of 100 to the relation
+ initialize {input} {population}    : Reads the input configuration file and creates a base population of the specified
+                                      size
+ parse-names {input} {output}       : Takes a list of names and converts them into the appropriate format for the 
+                                      configuration file
+ parse-relations {input} {output}   : Takes a list of relations, defined as &lt;left-person&gt; + &lt;right-person&gt; 
+                                      and will assign a score of 100 to the relation
  run {generations}                  : Runs the specified number of generations
- save {output}                      : Saves the best arrangment to the specified file, and also saves a more formatted version called "pretty-{output}"
+ save {output}                      : Saves the best arrangment to the specified file, and also saves a more formatted 
+                                      version called "pretty-{output}"
 </pre>
 
 Input Files
