@@ -42,18 +42,6 @@ namespace SeatingChart
 
                 Commands[tokens[0].ToLower()].Command.DynamicInvoke(tokens.Skip(1).ToArray());
             }
-
-            /*
-
-            runner.RunGeneration();
-
-            var textWriter = new StreamWriter(args[1]);
-            var writer = new JsonTextWriter(textWriter);
-            writer.Formatting = Formatting.Indented;
-            writer.Indentation = 4;
-            jsSerializer.Serialize(writer, runner.Population);
-
-            Console.ReadLine();*/
         }
 
         private static Dictionary<string, CommandRunner> SetupCommands()
@@ -90,7 +78,23 @@ namespace SeatingChart
                                                               "parse-relations {input} {output} : Converts relations to basic json files",
                                                           Command = new Action<string, string>(ParseRelations)
                                                       }
-                               }
+                               },
+                               {
+                               "run", new CommandRunner
+                                                      {
+                                                          Help =
+                                                              "run {generations} : Runs the specified number of generations",
+                                                          Command = new Action<string>(RunGenerations)
+                                                      }
+                               },
+                               {
+                               "save", new CommandRunner
+                                                      {
+                                                          Help =
+                                                              "save {output} : Saves the current best arrangement",
+                                                          Command = new Action<string>(SaveBest)
+                                                      }
+                               },
                        };
         }
 
@@ -104,6 +108,43 @@ namespace SeatingChart
             reader.Close();
 
             Runner = new Runner(cfg, int.Parse(populationSize));
+
+            Console.WriteLine("Initialized");
+            Console.WriteLine("Best table score is: " + Runner.BestScore());
+        }
+
+        private static void RunGenerations(string number)
+        {
+            for (var i = 0; i < int.Parse(number); i++)
+            {
+                Runner.RunGeneration();
+                Console.WriteLine("Generation " + (i + 1) + ": " + Runner.BestScore());
+            }
+        }
+
+        private static void SaveBest(string output)
+        {
+            var serializer = new JsonSerializer();
+            
+            var textWriter = new StreamWriter(output);
+            var writer = new JsonTextWriter(textWriter) { Formatting = Formatting.Indented, Indentation = 4 };
+            serializer.Serialize(writer, Runner.CurrentArrangement);
+            textWriter.Flush();
+            textWriter.Close();
+
+            textWriter = new StreamWriter("pretty-" + output);
+            foreach (var table in Runner.CurrentArrangement.Tables)
+            {
+                textWriter.WriteLine("Table");
+                textWriter.WriteLine("".PadRight(80, '='));
+
+                foreach (var person in table.People.Where(x => x != null))
+                    textWriter.WriteLine(person.Name);
+
+                textWriter.WriteLine("\n");
+            }
+            textWriter.Flush();
+            textWriter.Close();
         }
 
         private static void ParseNames(string input, string output)
@@ -183,9 +224,10 @@ namespace SeatingChart
 
         private static void DisplayHelp()
         {
-            foreach (var cmd in Commands)
+            foreach (var cmd in Commands.OrderBy(x => x.Key))
             {
                 Console.WriteLine(cmd.Value.Help);
+                Console.WriteLine();
             }
             Console.WriteLine();
         }

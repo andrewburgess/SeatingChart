@@ -33,23 +33,42 @@ namespace SeatingChart
 
         public void RunGeneration()
         {
-            var left = Random.Next(0, Population.Count);
-            var right = Random.Next(0, Population.Count);
+            var combinations = Enumerable.Range(2, 1)
+                .Aggregate(
+                    Enumerable.Empty<IEnumerable<Arrangement>>(),
+                    (acc, i) =>
+                    acc.Concat(Enumerable.Repeat(Population, i).Combinations()).OrderByDescending(
+                        x => x.First().Score + x.Skip(1).First().Score));
 
-            var next = Combine(Population[left], Population[right]);
-            CalculateFitness(next);
-
-            if (next.Score > Population[left].Score && next.Score > Population[right].Score)
+            var newPopulation = new List<Arrangement>();
+            foreach (var combo in combinations)
             {
-                if (Population[left].Score > Population[right].Score)
+                var left = combo.First();
+                var right = combo.Skip(1).First();
+
+                var next = Combine(left, right);
+                CalculateFitness(next);
+
+                if (next.Score > left.Score && next.Score > right.Score)
                 {
-                    Population[right] = next;
+                    newPopulation.Add(next);
+                    newPopulation.Add(left.Score > right.Score ? left : right);
+                }
+                else if (next.Score > left.Score && next.Score < right.Score)
+                {
+                    newPopulation.Add(right);
+                    newPopulation.Add(next);
+                }
+                else
+                {
+                    newPopulation.Add(left);
+                    newPopulation.Add(right);
                 }
             }
-            else if (next.Score > Population[left].Score && next.Score < Population[right].Score)
-            {
-                Population[left] = next;
-            }
+
+            Population = newPopulation.OrderByDescending(x => x.Score).Take(Population.Count - 5).ToList();
+            Population.AddRange(newPopulation.Shuffle(Random).Take(5));
+            CurrentArrangement = Population.OrderByDescending(x => x.Score).First();
         }
 
         /// <summary>
@@ -187,6 +206,10 @@ namespace SeatingChart
 
                     //Calculate political differences
                     tableScore += CalculatePolitics(leftPerson.Politics, rightPerson.Politics);
+
+                    //Calculate drunkenness (+15 is for general tolerance of drunken shenanigans)
+                    //(i.e. Left is 100, right is 20, score would be -80 + 15
+                    tableScore += -1 * Math.Abs(leftPerson.DrunkFactor - rightPerson.DrunkFactor) + 15;
                 }
 
                 table.Score = tableScore;
@@ -199,6 +222,11 @@ namespace SeatingChart
         private static int CalculatePolitics(Politics leftPolitics, Politics rightPolitics)
         {
             return leftPolitics.Left + rightPolitics.Left + leftPolitics.Right + rightPolitics.Right;
+        }
+
+        public int BestScore()
+        {
+            return this.Population.Max(x => x.Score);
         }
     }
 }
