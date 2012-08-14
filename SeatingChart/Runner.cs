@@ -40,7 +40,7 @@ namespace SeatingChart
                     Enumerable.Empty<IEnumerable<Arrangement>>(),
                     (acc, i) =>
                     acc.Concat(Enumerable.Repeat(Population, i).Combinations()).OrderByDescending(
-                        x => x.First().Score + x.Skip(1).First().Score));
+                        x => x.First().Score + x.Skip(1).First().Score)).ToList();
 
             var newPopulation = new List<Arrangement>();
             foreach (var combo in combinations)
@@ -49,6 +49,7 @@ namespace SeatingChart
                 var right = combo.Skip(1).First();
 
                 var next = Combine(left, right);
+
                 next.Score = CalculateFitness(next);
 
                 if (next.Score > left.Score && next.Score > right.Score)
@@ -68,8 +69,9 @@ namespace SeatingChart
                 }
             }
 
+            Population.Clear();
             Population = newPopulation.OrderByDescending(x => x.Score).Take(5).ToList();
-            Population.AddRange(newPopulation.Shuffle(Random).Take(InitialPopulation - 5));
+            Population.AddRange(newPopulation.Shuffle(Random).Take(InitialPopulation - 5).ToList());
             CurrentArrangement = Population.OrderByDescending(x => x.Score).First();
         }
 
@@ -112,40 +114,51 @@ namespace SeatingChart
 
             //Pick random tables from each side
             foreach (var odd in odds)
-                nextArrangement.Tables[odd] = left.Tables[odd];
+                nextArrangement.Tables[odd] = new Table(left.Tables[odd]);
             foreach (var even in evens)
-                nextArrangement.Tables[even] = right.Tables[even];
+                nextArrangement.Tables[even] = new Table(right.Tables[even]);
 
-            foreach (var person in Configuration.People)
+            var inTheClear = false;
+
+            while (!inTheClear)
             {
-                var current = person;
-                if (nextArrangement.Tables.Count(x => x.People.Contains(current)) > 1)
+                var found = false;
+                foreach (var person in Configuration.People)
                 {
-                    var offending = nextArrangement.Tables.Where(x => x.People.Contains(current));
-                    var first = offending.First();
-                    var second = offending.Skip(1).First();
-                    var firstIndex = first.People.IndexOf(current);
-                    var secondIndex = second.People.IndexOf(current);
-
-                    first.People[firstIndex] = null;
-                    var firstScore = CalculateFitness(nextArrangement);
-
-                    first.People[firstIndex] = current;
-                    second.People[secondIndex] = null;
-                    var secondScore = CalculateFitness(nextArrangement);
-
-                    if (firstScore > secondScore)
+                    var current = person;
+                    var tables = nextArrangement.Tables.Where(x => x.People.Contains(current)).ToList();
+                    if (tables.Count() > 1)
                     {
+                        found = true;
+                        var offending = nextArrangement.Tables.Where(x => x.People.Contains(current)).ToList();
+                        var first = offending.First();
+                        var second = offending.Skip(1).First();
+                        var firstIndex = first.People.IndexOf(current);
+                        var secondIndex = second.People.IndexOf(current);
+
                         first.People[firstIndex] = null;
-                        second.People[secondIndex] = current;
+                        var firstScore = CalculateFitness(nextArrangement);
+
+                        first.People[firstIndex] = current;
+                        second.People[secondIndex] = null;
+                        var secondScore = CalculateFitness(nextArrangement);
+
+                        if (firstScore > secondScore)
+                        {
+                            first.People[firstIndex] = null;
+                            second.People[secondIndex] = current;
+                        }
                     }
                 }
+
+                inTheClear = !found;
             }
 
-            var unassigned = Configuration.People.Where(x => nextArrangement.HasPerson(x) == false).Shuffle(Random).ToList();
+            var unassigned = Configuration.People.Where(x => nextArrangement.HasPerson(x) == false).ToList();
+
             while (unassigned.Count() > 0)
             {
-                var tablesWithEmptySeats = nextArrangement.Tables.Where(x => x.People.Count(y => y == null) > 0);
+                var tablesWithEmptySeats = nextArrangement.Tables.Where(x => x.People.Count(y => y == null) > 0).ToList();
                 var bestTable = tablesWithEmptySeats.First();
 
                 var position = bestTable.People.IndexOf(null);
@@ -186,7 +199,6 @@ namespace SeatingChart
             foreach (var table in arrangement.Tables)
             {
                 var currentTable = table;
-                var relationshipsAccountedFor = new List<Relationship>();
 
                 var tableScore = 0;
 
@@ -194,7 +206,7 @@ namespace SeatingChart
                     .Aggregate(
                         Enumerable.Empty<IEnumerable<Person>>(),
                         (acc, i) =>
-                        acc.Concat(Enumerable.Repeat(currentTable.People, i).Combinations()));
+                        acc.Concat(Enumerable.Repeat(currentTable.People, i).Combinations())).ToList();
 
                 foreach (var combo in combinations)
                 {
@@ -209,7 +221,6 @@ namespace SeatingChart
                     if (relationship != null)
                     {
                         tableScore += relationship.Score;
-                        relationshipsAccountedFor.Add(relationship);
                     }
                     else
                     {
@@ -231,6 +242,7 @@ namespace SeatingChart
                 score += tableScore;
             }
 
+            
             return score;
         }
 

@@ -16,6 +16,17 @@ namespace SeatingChart.Model
                 People.Add(null);
         }
 
+        public Table(Table toCopy)
+        {
+            People = new List<Person>(toCopy.People.Count);
+
+            for (var i = 0; i < toCopy.People.Count; i++)
+                People.Add(null);
+
+            for (var i = 0; i < toCopy.People.Count; i++)
+                People[i] = toCopy.People[i];
+        }
+
         public override string ToString()
         {
             var s = "Score: " + Score + " [" + People.Select(x => x == null ? "<empty>" : x.Name).Aggregate("", (y, z) => y + z + ", ");
