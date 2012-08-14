@@ -23,7 +23,7 @@ namespace SeatingChart.Model
 
         public bool HasPerson(Person randomPerson)
         {
-            return Tables.Any(table => table.People.Contains(randomPerson));
+            return Tables.Any(table => table.People.Contains(randomPerson) || table.People.Where(x => x != null).Count(x => x.Name == randomPerson.Name) > 0);
         }
 
         public int CompareTo(Arrangement other)

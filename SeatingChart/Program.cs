@@ -29,18 +29,25 @@ namespace SeatingChart
 
             while (input.ToLower() != "exit" && input.ToLower() != "quit")
             {
-                Console.Write("Enter Command (type help for list): ");
-                input = Console.ReadLine();
-
-                var tokens = input.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
-
-                if (Commands.ContainsKey(tokens[0].ToLower()) == false)
+                try
                 {
-                    Console.WriteLine("Command was invalid.\n");
-                    continue;
-                }
+                    Console.Write("Enter Command (type help for list): ");
+                    input = Console.ReadLine();
 
-                Commands[tokens[0].ToLower()].Command.DynamicInvoke(tokens.Skip(1).ToArray());
+                    var tokens = input.Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+
+                    if (Commands.ContainsKey(tokens[0].ToLower()) == false)
+                    {
+                        Console.WriteLine("Command was invalid.\n");
+                        continue;
+                    }
+
+                    Commands[tokens[0].ToLower()].Command.DynamicInvoke(tokens.Skip(1).ToArray());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Invalid input: " + e.Message + "\n");
+                }
             }
         }
 
@@ -118,7 +125,7 @@ namespace SeatingChart
             for (var i = 0; i < int.Parse(number); i++)
             {
                 Runner.RunGeneration();
-                Console.WriteLine("Generation " + (i + 1) + ": " + Runner.BestScore());
+                Console.WriteLine("Generation " + (i + 1) + ": " + Runner.BestScore() + " (avg: " + Runner.AverageScore() + ")");
             }
         }
 
@@ -135,7 +142,7 @@ namespace SeatingChart
             textWriter = new StreamWriter("pretty-" + output);
             foreach (var table in Runner.CurrentArrangement.Tables)
             {
-                textWriter.WriteLine("Table");
+                textWriter.WriteLine("Table (" + table.Score + ")");
                 textWriter.WriteLine("".PadRight(80, '='));
 
                 foreach (var person in table.People.Where(x => x != null))

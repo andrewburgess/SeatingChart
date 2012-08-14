@@ -16,6 +16,8 @@ namespace SeatingChart
 
         private Random Random { get; set; }
 
+        private int InitialPopulation { get; set; }
+
         public Runner(Configuration cfg, int initialPopulation)
         {
             Random = new Random();
@@ -26,9 +28,9 @@ namespace SeatingChart
             if (Configuration.People.Count > Seats)
                 throw new ApplicationException("Too many people for the number of seats");
 
-            CurrentArrangement = new Arrangement(Configuration.NumberOfTables, Configuration.PeoplePerTable);
-
-            Initialize(initialPopulation);
+            InitialPopulation = initialPopulation;
+            Initialize(InitialPopulation);
+            CurrentArrangement = Population.OrderByDescending(x => x.Score).First();
         }
 
         public void RunGeneration()
@@ -47,7 +49,7 @@ namespace SeatingChart
                 var right = combo.Skip(1).First();
 
                 var next = Combine(left, right);
-                CalculateFitness(next);
+                next.Score = CalculateFitness(next);
 
                 if (next.Score > left.Score && next.Score > right.Score)
                 {
@@ -66,8 +68,8 @@ namespace SeatingChart
                 }
             }
 
-            Population = newPopulation.OrderByDescending(x => x.Score).Take(Population.Count - 5).ToList();
-            Population.AddRange(newPopulation.Shuffle(Random).Take(5));
+            Population = newPopulation.OrderByDescending(x => x.Score).Take(5).ToList();
+            Population.AddRange(newPopulation.Shuffle(Random).Take(InitialPopulation - 5));
             CurrentArrangement = Population.OrderByDescending(x => x.Score).First();
         }
 
@@ -97,7 +99,7 @@ namespace SeatingChart
                     }
                 }
 
-                CalculateFitness(arrangement);
+                arrangement.Score = CalculateFitness(arrangement);
                 Population.Add(arrangement);
             }
         }
@@ -105,71 +107,80 @@ namespace SeatingChart
         private Arrangement Combine(Arrangement left, Arrangement right)
         {
             var nextArrangement = new Arrangement(Configuration.NumberOfTables, Configuration.PeoplePerTable);
+            var odds = Enumerable.Range(0, Configuration.NumberOfTables).Where(x => x % 2 != 0);
+            var evens = Enumerable.Range(0, Configuration.NumberOfTables).Where(x => x % 2 == 0);
 
-            for (var i = 0; i < Configuration.NumberOfTables; i++)
+            //Pick random tables from each side
+            foreach (var odd in odds)
+                nextArrangement.Tables[odd] = left.Tables[odd];
+            foreach (var even in evens)
+                nextArrangement.Tables[even] = right.Tables[even];
+
+            foreach (var person in Configuration.People)
             {
-                for (var j = 0; j < Configuration.PeoplePerTable; j++)
+                var current = person;
+                if (nextArrangement.Tables.Count(x => x.People.Contains(current)) > 1)
                 {
-                    var leftPerson = left.Tables[i].People[j];
-                    var rightPerson = right.Tables[i].People[j];
+                    var offending = nextArrangement.Tables.Where(x => x.People.Contains(current));
+                    var first = offending.First();
+                    var second = offending.Skip(1).First();
+                    var firstIndex = first.People.IndexOf(current);
+                    var secondIndex = second.People.IndexOf(current);
 
-                    if (leftPerson == null && rightPerson == null)
+                    first.People[firstIndex] = null;
+                    var firstScore = CalculateFitness(nextArrangement);
+
+                    first.People[firstIndex] = current;
+                    second.People[secondIndex] = null;
+                    var secondScore = CalculateFitness(nextArrangement);
+
+                    if (firstScore > secondScore)
                     {
-                        if (Random.Next(0, 3) == 0)
-                            continue;
-
-                        var randomPerson = Configuration.People[Random.Next(0, Configuration.People.Count)];
-                        if (!nextArrangement.HasPerson(randomPerson))
-                            nextArrangement.Tables[i].People[j] = randomPerson;
-                    }
-                    else if (leftPerson != null && rightPerson == null)
-                    {
-                        if (Random.Next(0, 3) == 0)
-                            continue;
-
-                        if (!nextArrangement.HasPerson(leftPerson))
-                            nextArrangement.Tables[i].People[j] = leftPerson;
-                    }
-                    else if (leftPerson == null && rightPerson != null)
-                    {
-                        if (Random.Next(0, 3) == 0)
-                            continue;
-
-                        if (!nextArrangement.HasPerson(rightPerson))
-                            nextArrangement.Tables[i].People[j] = rightPerson;
-                    }
-                    else
-                    {
-                        if (Random.Next(0, 3) == 0)
-                            continue;
-
-                        var next = Random.Next(0, 1);
-                        if (next == 0)
-                            nextArrangement.Tables[i].People[j] = leftPerson;
-                        else
-                            nextArrangement.Tables[i].People[j] = rightPerson;
+                        first.People[firstIndex] = null;
+                        second.People[secondIndex] = current;
                     }
                 }
             }
 
-            var unassigned = Configuration.People.Where(x => nextArrangement.HasPerson(x) == false).ToList();
+            var unassigned = Configuration.People.Where(x => nextArrangement.HasPerson(x) == false).Shuffle(Random).ToList();
             while (unassigned.Count() > 0)
             {
-                var nextTable = Random.Next(0, Configuration.NumberOfTables);
-                var nextSeat = Random.Next(0, Configuration.PeoplePerTable);
+                var tablesWithEmptySeats = nextArrangement.Tables.Where(x => x.People.Count(y => y == null) > 0);
+                var bestTable = tablesWithEmptySeats.First();
 
-                if (nextArrangement.Tables[nextTable].People[nextSeat] == null)
+                var position = bestTable.People.IndexOf(null);
+                bestTable.People[position] = unassigned[0];
+                var bestScore = CalculateFitness(nextArrangement);
+                var bestPosition = position;
+
+                foreach (var table in tablesWithEmptySeats.Skip(1))
                 {
-                    nextArrangement.Tables[nextTable].People[nextSeat] = unassigned[0];
-                    unassigned.RemoveAt(0);
-                    continue;
+                    bestTable.People[bestPosition] = null;
+                    position = table.People.IndexOf(null);
+                    table.People[position] = unassigned[0];
+                    var score = CalculateFitness(nextArrangement);
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestTable.People[bestPosition] = null;
+                        bestPosition = position;
+                        bestTable = table;
+                        bestTable.People[bestPosition] = unassigned[0];
+                    }
+                    else
+                    {
+                        bestTable.People[bestPosition] = unassigned[0];
+                        table.People[position] = null;
+                    }
                 }
+
+                unassigned.RemoveAt(0);
             }
 
             return nextArrangement;
         }
 
-        private void CalculateFitness(Arrangement arrangement)
+        private int CalculateFitness(Arrangement arrangement)
         {
             var score = 0;
             foreach (var table in arrangement.Tables)
@@ -200,6 +211,10 @@ namespace SeatingChart
                         tableScore += relationship.Score;
                         relationshipsAccountedFor.Add(relationship);
                     }
+                    else
+                    {
+                        tableScore -= 25;
+                    }
 
                     //Calculate age differences
                     tableScore += (int)Math.Pow(leftPerson.Age - rightPerson.Age, 2);
@@ -216,7 +231,7 @@ namespace SeatingChart
                 score += tableScore;
             }
 
-            arrangement.Score = score;
+            return score;
         }
 
         private static int CalculatePolitics(Politics leftPolitics, Politics rightPolitics)
@@ -227,6 +242,11 @@ namespace SeatingChart
         public int BestScore()
         {
             return this.Population.Max(x => x.Score);
+        }
+
+        public int AverageScore()
+        {
+            return (int)Population.Average(x => x.Score);
         }
     }
 }
