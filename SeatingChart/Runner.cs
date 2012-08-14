@@ -217,7 +217,7 @@ namespace SeatingChart
                     }
 
                     //Calculate age differences
-                    tableScore += (int)Math.Pow(leftPerson.Age - rightPerson.Age, 2);
+                    tableScore -= (int)Math.Pow(leftPerson.Age - rightPerson.Age, 2);
 
                     //Calculate political differences
                     tableScore += CalculatePolitics(leftPerson.Politics, rightPerson.Politics);
